@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Movie Night">
+  <title>Movie Night</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d0d; --surface: #1a1a1a; --surface2: #222;
+      --border: #2a2a2a; --text: #e8e6e1; --muted: #666;
+      --muted2: #444; --accent: #e9a84c; --accent2: #c4813a;
+      --green: #5c9e6e; --red: #9e5c5c;
+    }
+    html, body {
+      height: 100%; width: 100%; background: var(--bg); color: var(--text);
+      font-family: 'Inter', sans-serif; overflow: hidden;
+      -webkit-tap-highlight-color: transparent; user-select: none;
+    }
+    body {
+      display: flex; flex-direction: column; min-height: 100dvh;
+      padding-top: max(env(safe-area-inset-top), 52px);
+      padding-bottom: max(env(safe-area-inset-bottom), 32px);
+      padding-left: 24px; padding-right: 24px;
+      gap: 0;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; flex-shrink: 0;
+    }
+    .header-left h1 {
+      font-family: 'Playfair Display', serif; font-size: 26px;
+      font-weight: 900; color: var(--text); letter-spacing: -0.02em;
+    }
+    .header-left p {
+      font-size: 11px; color: var(--muted);
+      letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px;
+    }
+    .count-badge {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 14px; font-size: 12px;
+      font-weight: 500; color: var(--muted); text-align: center; line-height: 1.3;
+    }
+    .count-badge span {
+      display: block; font-size: 18px; font-weight: 700;
+      color: var(--accent); font-family: 'Playfair Display', serif;
+    }
+
+    /* ── ROLL BUTTON (top) ── */
+    .roll-btn {
+      width: 100%; padding: 18px; border-radius: 16px; border: none;
+      background: var(--accent); color: #0d0d0d; font-family: 'Inter', sans-serif;
+      font-weight: 700; font-size: 16px; letter-spacing: 0.08em;
+      text-transform: uppercase; cursor: pointer; outline: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 4px 24px rgba(233, 168, 76, 0.25);
+      flex-shrink: 0; margin-bottom: 16px;
+    }
+    .roll-btn:active { transform: scale(0.97); background: var(--accent2); }
+    .roll-btn:disabled { background: var(--surface2); color: var(--muted); box-shadow: none; cursor: default; }
+
+    /* ── CARD ── */
+    .card {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 28px 24px; position: relative;
+      overflow: hidden; display: flex; flex-direction: column;
+      justify-content: center; flex-shrink: 0;
+    }
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 3px; background: linear-gradient(90deg, var(--accent2), var(--accent));
+      opacity: 0; transition: opacity 0.4s ease;
+    }
+    .card.revealed::before { opacity: 1; }
+
+    .card-state-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 10px; padding: 24px 0;
+    }
+    .card-state-empty .icon { font-size: 36px; opacity: 0.3; }
+    .card-state-empty p { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.5; }
+
+    .rolling-state { display: none; flex-direction: column; gap: 10px; padding: 8px 0; }
+    .rolling-state.active { display: flex; }
+    .shimmer {
+      border-radius: 6px;
+      background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+      background-size: 200% 100%; animation: shimmer 1s infinite;
+    }
+    .shimmer.s-label { height: 10px; width: 30%; }
+    .shimmer.s-title { height: 30px; width: 85%; border-radius: 8px; margin: 4px 0; }
+    .shimmer.s-meta  { height: 11px; width: 50%; }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    .movie-number {
+      font-size: 11px; font-weight: 500; color: var(--accent);
+      letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px;
+      opacity: 0; transition: opacity 0.3s ease;
+    }
+    .card.revealed .movie-number { opacity: 1; }
+    .movie-title {
+      font-family: 'Playfair Display', serif; font-size: clamp(22px, 6vw, 30px);
+      font-weight: 700; color: var(--text); line-height: 1.2; letter-spacing: -0.01em;
+      opacity: 0; transform: translateY(8px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .card.revealed .movie-title { opacity: 1; transform: translateY(0); }
+    .movie-meta {
+      display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px;
+      opacity: 0; transition: opacity 0.35s ease 0.1s;
+    }
+    .card.revealed .movie-meta { opacity: 1; }
+    .meta-chip {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 500; color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 4px 10px;
+    }
+    .meta-chip .icon { font-size: 11px; }
+
+
+    /* ── STATUS ── */
+    .status-bar {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 10px; margin-bottom: 16px; flex-shrink: 0;
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted2); flex-shrink: 0; transition: background 0.3s ease;
+    }
+    .status-dot.ok { background: var(--green); }
+    .status-dot.err { background: var(--red); }
+    .status-dot.loading { background: var(--accent); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .status-text { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; }
+
+    /* ── RECENTS ── */
+    .recents-section { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+    .recents-label {
+      font-size: 10px; font-weight: 500; color: var(--muted2);
+      letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 10px; flex-shrink: 0;
+    }
+    .recents-list { display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+    .recent-item {
+      display: flex; flex-direction: column;
+      padding: 12px 14px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; opacity: 0; transform: translateY(4px);
+      transition: opacity 0.3s ease, transform 0.3s ease; flex-shrink: 0;
+    }
+    .recent-item.visible { opacity: 1; transform: translateY(0); }
+    .recent-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .recent-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .recent-title {
+      font-size: 13px; font-weight: 500; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .recent-sub { font-size: 11px; color: var(--muted); }
+    .recent-runtime {
+      font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-left">
+      <h1>Movie Night</h1>
+      <p>Unwatched picks</p>
+    </div>
+    <div class="count-badge"><span id="countNum">—</span>left</div>
+  </div>
+
+  <button class="roll-btn" id="rollBtn" onclick="roll()">🎲 Roll</button>
+
+  <div class="card" id="card">
+    <div class="rolling-state" id="rollingState">
+      <div class="shimmer s-label"></div>
+      <div class="shimmer s-title"></div>
+      <div class="shimmer s-meta"></div>
+    </div>
+    <div class="card-state-empty" id="emptyState">
+      <div class="icon">🎬</div>
+      <p>Tap Roll to pick a random<br>movie from your list</p>
+    </div>
+    <div id="resultState" style="display:none;">
+      <div class="movie-number" id="movieNumber"></div>
+      <div class="movie-title" id="movieTitle"></div>
+      <div class="movie-meta" id="movieMeta"></div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <div class="status-text" id="statusText">Loading your list…</div>
+  </div>
+
+  <div class="recents-section">
+    <div class="recents-label">Recent picks</div>
+    <div class="recents-list" id="recentsList">
+      <div class="recent-item visible" style="opacity:0.3; border-style:dashed;">
+        <span class="recent-title" style="color:var(--muted);">No picks yet</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SHEET_ID = '10cycGFq9XChhEUwIB-Mxybcl6N7fSlPymH_PA1BPrsk';
+    // Using JSONP-style Google Sheets JSON feed — no CORS issues
+    const JSON_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Sheet1`;
+
+    const card         = document.getElementById('card');
+    const rollingState = document.getElementById('rollingState');
+    const emptyState   = document.getElementById('emptyState');
+    const resultState  = document.getElementById('resultState');
+    const movieNumber  = document.getElementById('movieNumber');
+    const movieTitle   = document.getElementById('movieTitle');
+    const movieMeta    = document.getElementById('movieMeta');
+    const countNum     = document.getElementById('countNum');
+    const statusDot    = document.getElementById('statusDot');
+    const statusText   = document.getElementById('statusText');
+    const rollBtn      = document.getElementById('rollBtn');
+    const recentsList  = document.getElementById('recentsList');
+
+    let recents = [];
+    let rolling = false;
+
+    function setStatus(state, msg) {
+      statusDot.className = 'status-dot' + (state ? ' ' + state : '');
+      statusText.textContent = msg;
+    }
+
+    async function fetchMovies() {
+      setStatus('loading', 'Fetching your list…');
+      try {
+        const res = await fetch(JSON_URL + '&t=' + Date.now());
+        if (!res.ok) throw new Error('Network error');
+        const text = await res.text();
+
+        // Google wraps the JSON in /*O_o*/ google.visualization.Query.setResponse({...});
+        const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);/)[1]);
+        const rows = json.table.rows;
+        const cols = json.table.cols;
+
+        // Log column headers to console for debugging
+        console.log('Columns:', cols.map((c,i) => i + ': ' + c.label));
+
+        // Col A=0 (checkbox/seen), Col B=1, Col C=2 (title), Col D=3 (year), Col E=4 (runtime)
+        const unwatched = rows.filter(row => {
+          const seenVal = row.c[0]?.v;
+          return seenVal !== true && seenVal !== 'TRUE' && seenVal !== true;
+        }).map(row => ({
+          seen:    row.c[0]?.v,
+          title:   row.c[2]?.v?.toString().trim() || '',
+          year:    row.c[3]?.v?.toString().trim() || '',
+          runtime: row.c[4]?.v?.toString().trim() || '',
+        })).filter(m => m.title);
+
+        countNum.textContent = unwatched.length;
+
+        if (unwatched.length === 0) {
+          setStatus('ok', 'You\'ve watched everything! 🎉');
+          rollBtn.disabled = true;
+          return null;
+        }
+
+        setStatus('ok', `${unwatched.length} unwatched films`);
+        rollBtn.disabled = false;
+        return unwatched;
+      } catch(e) {
+        console.error(e);
+        setStatus('err', 'Couldn\'t load sheet — check sharing settings');
+        rollBtn.disabled = false;
+        return null;
+      }
+    }
+
+    function showResult(movie) {
+      card.classList.remove('revealed');
+      rollingState.classList.remove('active');
+      emptyState.style.display = 'none';
+      resultState.style.display = 'block';
+
+      movieNumber.textContent = `Pick #${recents.length + 1}`;
+      movieTitle.textContent  = movie.title;
+
+      movieMeta.innerHTML = '';
+      if (movie.year) {
+        const el = document.createElement('div');
+        el.className = 'meta-chip';
+        el.innerHTML = `<span class="icon">📅</span> ${movie.year}`;
+        movieMeta.appendChild(el);
+      }
+      if (movie.runtime) {
+        const el = document.createElement('div');
+        el.className = 'meta-chip';
+        el.innerHTML = `<span class="icon">⏱</span> ${movie.runtime} min`;
+        movieMeta.appendChild(el);
+      }
+
+      requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('revealed')));
+
+      recents.unshift(movie);
+      if (recents.length > 3) recents.pop();
+      renderRecents();
+    }
+
+    function renderRecents() {
+      recentsList.innerHTML = '';
+      recents.forEach((r, i) => {
+        const el = document.createElement('div');
+        el.className = 'recent-item';
+        el.innerHTML = `
+          <div class="recent-top">
+            <div class="recent-left">
+              <span class="recent-title">${r.title}</span>
+              <span class="recent-sub">${[r.year, r.runtime ? r.runtime + ' min' : ''].filter(Boolean).join(' · ')}</span>
+            </div>
+          </div>`;
+        recentsList.appendChild(el);
+        setTimeout(() => el.classList.add('visible'), i * 60);
+      });
+    }
+
+    async function roll() {
+      if (rolling) return;
+      rolling = true;
+      rollBtn.disabled = true;
+
+      card.classList.remove('revealed');
+      emptyState.style.display = 'none';
+      resultState.style.display = 'none';
+      rollingState.classList.add('active');
+
+      const movies = await fetchMovies();
+
+      if (!movies || movies.length === 0) {
+        rollingState.classList.remove('active');
+        emptyState.style.display = 'flex';
+        rolling = false;
+        return;
+      }
+
+      await new Promise(r => setTimeout(r, 500));
+
+      const pick = movies[Math.floor(Math.random() * movies.length)];
+      rollingState.classList.remove('active');
+      showResult(pick);
+
+      if (navigator.vibrate) navigator.vibrate(12);
+      rolling = false;
+      rollBtn.disabled = false;
+    }
+
+    fetchMovies();
+  </script>
+</body>
+</html>
