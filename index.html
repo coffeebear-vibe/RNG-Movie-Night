@@ -152,6 +152,30 @@
       text-decoration: none; opacity: 0.8;
     }
     .recent-lb:active { opacity: 1; }
+    .share-btn {
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      margin-top: 10px; width: 100%; padding: 10px 16px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; cursor: pointer; outline: none;
+      font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+      color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase;
+      -webkit-tap-highlight-color: transparent;
+      opacity: 0; transition: opacity 0.35s ease 0.25s, background 0.15s, color 0.15s;
+      border: none;
+    }
+    .card.revealed .share-btn { opacity: 1; }
+    .share-btn:active { background: var(--border); color: var(--text); }
+    .share-btn.copied { color: var(--green); }
+    .recent-share {
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-top: 6px; font-size: 11px; font-weight: 600;
+      color: var(--muted); cursor: pointer; background: none; border: none;
+      padding: 0; font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.2s ease;
+    }
+    .recent-share.copied { color: var(--green); }
+    .recent-share:active { color: var(--text); }
 
 
     /* ── STATUS ── */
@@ -313,6 +337,20 @@
       }
     }
 
+    function copyMovie(movie, btnEl) {
+      const query = encodeURIComponent(movie.title.trim());
+      const lbUrl = `https://letterboxd.com/search/${query}/`;
+      const parts = [`🎬 ${movie.title}${movie.year ? ' (' + movie.year + ')' : ''}`];
+      if (movie.runtime) parts.push(`⏱ ${movie.runtime} min`);
+      parts.push(`🔗 ${lbUrl}`);
+      navigator.clipboard.writeText(parts.join('\n')).then(() => {
+        const orig = btnEl.innerHTML;
+        btnEl.innerHTML = '✓ Copied!';
+        btnEl.classList.add('copied');
+        setTimeout(() => { btnEl.innerHTML = orig; btnEl.classList.remove('copied'); }, 2000);
+      });
+    }
+
     function showResult(movie) {
       card.classList.remove('revealed');
       rollingState.classList.remove('active');
@@ -347,6 +385,16 @@
       lbEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#89c244"><circle cx="7" cy="12" r="5"/><circle cx="12" cy="12" r="5" fill-opacity="0.6"/><circle cx="17" cy="12" r="5" fill-opacity="0.35"/></svg> View on Letterboxd`;
       resultState.appendChild(lbEl);
 
+      // Share / copy button
+      const existingShare = document.getElementById('shareBtn');
+      if (existingShare) existingShare.remove();
+      const shareEl = document.createElement('button');
+      shareEl.id = 'shareBtn';
+      shareEl.className = 'share-btn';
+      shareEl.innerHTML = `📋 Copy to share`;
+      shareEl.onclick = () => copyMovie(movie, shareEl);
+      resultState.appendChild(shareEl);
+
       requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('revealed')));
 
       recents.unshift(movie);
@@ -375,6 +423,12 @@
             <svg width="11" height="11" viewBox="0 0 24 24" fill="#89c244"><circle cx="7" cy="12" r="5"/><circle cx="12" cy="12" r="5" fill-opacity="0.6"/><circle cx="17" cy="12" r="5" fill-opacity="0.35"/></svg>
             View on Letterboxd
           </a>`;
+        // Add share button to recent item
+        const shareBtn = document.createElement('button');
+        shareBtn.className = 'recent-share';
+        shareBtn.innerHTML = `📋 Copy to share`;
+        shareBtn.onclick = () => copyMovie(r, shareBtn);
+        el.appendChild(shareBtn);
         recentsList.appendChild(el);
         setTimeout(() => el.classList.add('visible'), i * 60);
       });
